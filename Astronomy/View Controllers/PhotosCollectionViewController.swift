@@ -64,9 +64,41 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
     
     private func loadImage(forCell cell: ImageCollectionViewCell, forItemAt indexPath: IndexPath) {
         
-        // let photoReference = photoReferences[indexPath.item]
+        let photoReference = photoReferences[indexPath.item]
         
-        // TODO: Implement image loading here
+        let url = photoReference.imageURL.usingHTTPS!
+        
+        if let data = cache.value(for: photoReference.id) {
+            let image = UIImage(data: data)
+            DispatchQueue.main.async {
+                cell.imageView.image = image
+            }
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { (data, _, error) in
+            if let error = error {
+                NSLog("error fetching with datatask: \(error)")
+                return
+            }
+            if let data = data {
+                let image = UIImage(data: data)
+                self.cache.cache(value: data, for: photoReference.id)
+                DispatchQueue.main.async {
+                
+                    let currentIndexPath = self.collectionView.indexPath(for: cell)
+                    
+                    if currentIndexPath != indexPath {
+                        return
+                    }
+                
+                   cell.imageView.image = image
+               }
+            }
+        }.resume()
+        
+        
+        
     }
     
     // Properties
@@ -94,6 +126,8 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
             DispatchQueue.main.async { self.collectionView?.reloadData() }
         }
     }
+    
+    private var cache = Cache<Int, Data>()
     
     @IBOutlet var collectionView: UICollectionView!
 }
